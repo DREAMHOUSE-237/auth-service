@@ -62,7 +62,7 @@ jobs:
       - name: Trigger deploy workflow in infrastructure repo
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           repository: DREAMHOUSE-237/infrastructure   # ⚠️ remplace par ton organisation et repo exact
           event-type: deploy-auth-service
 
