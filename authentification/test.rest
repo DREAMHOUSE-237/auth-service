@@ -1,0 +1,53 @@
+POST http://localhost:8000/api/auth/register/
+Content-Type: multipart/form-data; boundary=MyBoundary
+
+--MyBoundary
+Content-Disposition: form-data; name="email"
+
+test1@example.com
+--MyBoundary
+Content-Disposition: form-data; name="password"
+
+Test1234!
+--MyBoundary
+Content-Disposition: form-data; name="role"
+
+proprietaire
+--MyBoundary
+Content-Disposition: form-data; name="tel"
+
++237690000000
+--MyBoundary
+Content-Disposition: form-data; name="nom"
+
+TANDENT
+--MyBoundary
+Content-Disposition: form-data; name="prenom"
+
+DANIEL CHARLES AUGUSTINE
+--MyBoundary
+Content-Disposition: form-data; name="nomUtilisateur"
+
+daniel_tandent
+--MyBoundary
+Content-Disposition: form-data; name="cni_recto"; filename="recto.png"
+Content-Type: image/png
+
+< ../../recto.png
+--MyBoundary
+Content-Disposition: form-data; name="cni_verso"; filename="verso.png"
+Content-Type: image/png
+
+< ../../verso.png
+--MyBoundary--
+
+
+
+###
+POST http://localhost:8000/api/auth/login/
+Content-Type: application/json
+
+{
+  "email": "test1@example.com",
+  "password": "Test1235!"
+}
