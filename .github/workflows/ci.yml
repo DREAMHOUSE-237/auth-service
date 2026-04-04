@@ -42,6 +42,10 @@ jobs:
     needs: test-and-build
     runs-on: ubuntu-latest
     steps:
+      # ⚠️ Checkout obligatoire avant de lancer l’action de merge
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
       - name: Merge dev into main
         uses: devops-infra/action-pull-request@v0.5.0
         with:
@@ -59,6 +63,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: DREAMHOUSE-237/infrastructure   # ⚠️ remplace par le vrai nom de ton organisation et repo
+          repository: DREAMHOUSE-237/infrastructure   # ⚠️ remplace par ton organisation et repo exact
           event-type: deploy-auth-service
 
