@@ -17,7 +17,8 @@ jobs:
       # 2. Lancer les tests (à adapter selon ton stack Django)
       - name: Run tests
         run: |
-          echo "Exécute tes tests ici (pytest, manage.py test, etc.)"
+          echo "Exécute tes tests ici (pyt
+          est, manage.py test, etc.)"
 
       # 3. Se connecter à Docker Hub
       - name: Login to Docker Hub
