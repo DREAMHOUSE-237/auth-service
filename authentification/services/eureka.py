@@ -3,50 +3,49 @@ import os
 import time
 import socket
 
-# URL du Eureka Registry (remplace par le DNS public de ton EC2_HOST2 où tourne registry-service)
-EUREKA_URL = os.getenv("EUREKA_URL", "http://ec2-16-170-212-130.eu-north-1.compute.amazonaws.com:8761/eureka")
+# URL du Eureka Registry (remplace par le DNS public de ton EC2 où tourne registry-service)
+EUREKA_URL = os.getenv(
+    "EUREKA_URL",
+    "http://ec2-16-170-212-130.eu-north-1.compute.amazonaws.com:8761/eureka"
+)
 APP_NAME = "AUTHENTIFICATION"
+PORT = int(os.getenv("APP_PORT", "8001"))
 
 def get_hostname():
     """
-    Récupère automatiquement le hostname public de l'instance EC2
+    Récupère automatiquement l'IP privée de l'instance EC2
     """
     try:
-        # AWS metadata service
-        url = "http://169.254.169.254/latest/meta-data/public-hostname"
-        return requests.get(url, timeout=2).text
+        return requests.get("http://169.254.169.254/latest/meta-data/local-ipv4", timeout=2).text
     except Exception:
-        # fallback: hostname local
         return socket.gethostname()
 
 def cleanup_old_instances():
-    """Supprime les anciennes instances de AUTHENTIFICATION"""
+    """Supprime les anciennes instances de AUTHENTIFICATION si besoin"""
     try:
         response = requests.get(f"{EUREKA_URL}/apps/{APP_NAME}", timeout=5)
         if response.status_code == 200:
             print("🧹 Nettoyage des anciennes instances...")
             # Ici tu pourrais supprimer d’anciennes instances si besoin
-            # Exemple : boucle sur response.json() pour trouver les anciens instanceId
     except Exception as e:
         print(f"⚠️ Impossible de nettoyer: {e}")
 
 def register_to_eureka():
-    hostname = get_hostname()   # utilise le DNS public EC2
-    port = 8000
-    INSTANCE_ID = f"{hostname}:{APP_NAME}:{port}"
+    hostname = get_hostname()
+    INSTANCE_ID = f"{hostname}:{APP_NAME}:{PORT}"
 
     payload = {
         "instance": {
             "instanceId": INSTANCE_ID,
             "hostName": hostname,
             "app": APP_NAME.upper(),
-            "ipAddr": hostname,  # on met le hostname au lieu de l’IP
+            "ipAddr": hostname,
             "status": "UP",
-            "port": {"$": port, "@enabled": "true"},
+            "port": {"$": PORT, "@enabled": "true"},
             "securePort": {"$": 443, "@enabled": "false"},
-            "healthCheckUrl": f"http://{hostname}:{port}/health",
-            "statusPageUrl": f"http://{hostname}:{port}/info",
-            "homePageUrl": f"http://{hostname}:{port}/",
+            "healthCheckUrl": f"http://{hostname}:{PORT}/api/auth/health",
+            "statusPageUrl": f"http://{hostname}:{PORT}/api/auth/info",
+            "homePageUrl": f"http://{hostname}:{PORT}/api/auth/",
             "vipAddress": APP_NAME.lower(),
             "secureVipAddress": APP_NAME.lower(),
             "dataCenterInfo": {
@@ -54,7 +53,7 @@ def register_to_eureka():
                 "name": "MyOwn"
             },
             "metadata": {
-                "management.port": str(port),
+                "management.port": str(PORT),
                 "instanceId": INSTANCE_ID
             },
             "leaseInfo": {
@@ -80,10 +79,9 @@ def register_to_eureka():
         print(f"❌ Erreur enregistrement Eureka : {e}")
 
 def start_heartbeat():
-    """Envoi d'un heartbeat toutes les 30s avec le hostname"""
+    """Envoi d'un heartbeat toutes les 30s avec l’IP privée"""
     hostname = get_hostname()
-    port = 8000
-    INSTANCE_ID = f"{hostname}:{APP_NAME}:{port}"
+    INSTANCE_ID = f"{hostname}:{APP_NAME}:{PORT}"
 
     print(f"💓 Démarrage heartbeat pour: {INSTANCE_ID}")
 

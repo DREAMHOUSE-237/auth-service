@@ -17,6 +17,7 @@ import json
 import django
 import os
 import sys
+import time
 
 
 def _bootstrap_django():
@@ -57,16 +58,22 @@ def handle_user_verified(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
-def start_consuming_user_verified(host='ec2-16-170-212-130.eu-north-1.compute.amazonaws.com'):
+def start_consuming_user_verified():
     """
     Lance le consumer en boucle bloquante.
-    Appelé dans un thread daemon depuis apps.py.
     """
-    import time
+    credentials = pika.PlainCredentials(
+        os.getenv("RABBITMQ_USER", "guest"),
+        os.getenv("RABBITMQ_PASSWORD", "guest")
+    )
+    host = os.getenv("RABBITMQ_HOST", "localhost")
+    port = int(os.getenv("RABBITMQ_PORT", "5672"))
 
     while True:
         try:
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host=host, port=port, credentials=credentials)
+            )
             channel = connection.channel()
             channel.queue_declare(queue='user_verified', durable=True)
             channel.basic_qos(prefetch_count=1)
