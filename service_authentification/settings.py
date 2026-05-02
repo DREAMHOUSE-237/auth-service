@@ -69,7 +69,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('MYSQL_DB', 'auth_db'),
         'USER': os.environ.get('MYSQL_USER', 'auth_user'),
-        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'password'),
+        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'htchamba124'),
         'HOST': os.environ.get('MYSQL_HOST', 'dreamhouse237-db.cbc4i248y7jv.eu-north-1.rds.amazonaws.com'),
         'PORT': os.environ.get('MYSQL_PORT', '3306'),
         'OPTIONS': {
