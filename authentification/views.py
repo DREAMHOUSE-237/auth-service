@@ -58,3 +58,20 @@ class MeView(APIView):
             "role": user.role,
             "is_verified": user.is_verified,
         }, status=status.HTTP_200_OK)
+
+
+class HealthView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"status": "UP"})
+
+class InfoView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({
+            "service": "AUTHENTIFICATION",
+            "version": "1.0.0",
+            "description": "Service d'authentification DreamHouse237"
+        })
