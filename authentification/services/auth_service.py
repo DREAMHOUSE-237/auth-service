@@ -1,5 +1,12 @@
 # auth_app/services/auth_service.py
-from django.db import transaction
+"""
+Service métier du microservice Auth.
+
+Après refactorisation :
+- L'inscription n'est PLUS gérée ici. Le service User est désormais le point d'entrée
+  du register. Il publie dans 'user_created' → consume_user_events.py crée l'AuthUser.
+- Ce service gère uniquement la connexion (login) et la génération de JWT.
+"""
 from ..models import AuthUser
 from .dto import UserDataDTO
 from .message_publisher import RabbitMQPublisher
@@ -9,71 +16,21 @@ from rest_framework_simplejwt.tokens import RefreshToken
 class AuthService:
     """
     Service métier central du microservice Auth.
-    Gère la création des utilisateurs et la communication inter-service.
+    Gère l'authentification (login) et la communication inter-service.
     """
-
-    @transaction.atomic
-    def register_user(
-        self, email, password, role, cni_recto, cni_verso,
-        tel=None, nom=None, prenom=None,
-        localisation=None, numeroIdentification=None,
-        nomPDG=None, contactPrincipal=None,
-        nomAgence=None, nomUtilisateur=None
-    ):
-        # 1️⃣ Vérifier l'existence
-        if AuthUser.objects.filter(email=email).exists():
-            raise ValueError("Un utilisateur avec cet email existe déjà.")
-
-        # 2️⃣ Création du compte Auth
-        user = AuthUser(
-            email=email,
-            role=role,
-            cni_recto=cni_recto,
-            cni_verso=cni_verso
-        )
-        user.set_password(password)
-        user.save()
-
-        # 3️⃣ DTO à destination du service User
-        user_dto = UserDataDTO(
-            user_id=user.id,
-            email=user.email,
-            role=role,
-            tel=tel,
-            nom=nom,
-            prenom=prenom,
-            nomUtilisateur=nomUtilisateur,
-            localisation=localisation,
-            numeroIdentification=numeroIdentification,
-            nomPDG=nomPDG,
-            contactPrincipal=contactPrincipal,
-            nomAgence=nomAgence
-        )
-
-        # 4️⃣ Publication event : création utilisateur
-        try:
-            publisher = RabbitMQPublisher(queue='user_created')
-            publisher.publish_message(user_dto.to_dict())
-            print(f"[✅] Utilisateur {user.email} créé et message envoyé au service User.")
-        except Exception as e:
-            print(f"[⚠️] Utilisateur {user.email} créé mais erreur RabbitMQ: {e}")
-
-        return user
-
 
     def login_user(self, email, password):
         """
-        Authentifie un utilisateur et renvoie un JWT si succès,
-        puis publie un événement d'email vers RabbitMQ.
+        Authentifie un utilisateur et retourne un JWT si succès.
+        Publie ensuite un événement d'email vers RabbitMQ (publication service).
         """
-
         try:
             user = AuthUser.objects.get(email=email)
         except AuthUser.DoesNotExist:
             raise ValueError("Utilisateur inexistant.")
 
         if not user.check_password(password):
-            raise ValueError("Email ou Mot de passe incorrect.")
+            raise ValueError("Email ou mot de passe incorrect.")
 
         if not user.is_active:
             raise ValueError("Compte désactivé.")
@@ -87,13 +44,13 @@ class AuthService:
             email=user.email
         )
 
-        # ✅ Publication event : envoi d'email
+        # ✅ Publication event : envoi d'email (service publication)
         try:
             publisher = RabbitMQPublisher(queue='user-email-queue')
             publisher.publish_message(user_dto.to_dict())
-            print(f"[✅] Email envoyé au service publication via RabbitMQ")
+            print(f"[✅] Événement email publié pour {user.email}")
         except Exception as e:
-            print(f"[⚠️] Connexion réussie mais erreur lors de l'envoi email RabbitMQ: {e}")
+            print(f"[⚠️] Connexion réussie mais erreur RabbitMQ email : {e}")
 
         return {
             "refresh": str(refresh),

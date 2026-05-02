@@ -6,7 +6,7 @@ class RabbitMQPublisher:
     """
     Classe utilitaire responsable d'envoyer les messages vers RabbitMQ.
     """
-    def __init__(self, queue,host='192.168.172.81'):
+    def __init__(self, queue,host='http://ec2-16-170-212-130.eu-north-1.compute.amazonaws.com'):
         self.host = host
         self.queue = queue
 

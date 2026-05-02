@@ -82,14 +82,14 @@ WSGI_APPLICATION = 'service_authentification.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-"""
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('MYSQL_DB', 'auth_db'),
         'USER': os.environ.get('MYSQL_USER', 'auth_user'),
         'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'htchamba124'),
-        'HOST': os.environ.get('MYSQL_HOST', 'mysql'),
+        'HOST': os.environ.get('MYSQL_HOST', 'dreamhouse237-db.cbc4i248y7jv.eu-north-1.rds.amazonaws.com'),
         'PORT': os.environ.get('MYSQL_PORT', '3306'),
         'OPTIONS': {
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
@@ -103,8 +103,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
-
+"""
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
