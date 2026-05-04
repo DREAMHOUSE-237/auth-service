@@ -2,7 +2,7 @@ import requests
 import os
 
 def load_config_from_server():
-    CONFIG_SERVER_URL = os.getenv("CONFIG_SERVER_URL", "http://ec2-16-170-212-130.eu-north-1.compute.amazonaws.com:8888")
+    CONFIG_SERVER_URL = os.getenv("CONFIG_SERVER_URL", "http://ec2-16-171-142-15.eu-north-1.compute.amazonaws.com:8888")
     APP_NAME = "AUTHENTIFICATION"
 
     url = f"{CONFIG_SERVER_URL}/{APP_NAME}/default"

@@ -6,7 +6,7 @@ import socket
 # URL du Eureka Registry
 EUREKA_URL = os.getenv(
     "EUREKA_URL",
-    "http://ec2-16-170-212-130.eu-north-1.compute.amazonaws.com:8761/eureka"
+    "http://ec2-16-171-142-15.eu-north-1.compute.amazonaws.com:8761/eureka"
 )
 APP_NAME = "AUTHENTIFICATION"
 PORT = int(os.getenv("APP_PORT", "8001"))
