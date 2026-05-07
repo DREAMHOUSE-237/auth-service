@@ -19,11 +19,26 @@ class AuthService:
     Gère l'authentification (login) et la communication inter-service.
     """
 
+    def _build_custom_claims(self, user):
+        """Retourne le dict des claims personnalisés à injecter dans les deux tokens."""
+        return {
+            "user_service_id": str(user.user_service_id) if user.user_service_id else None,
+            "email":           user.email,
+            "role":            user.role,
+            "is_verified":     user.is_verified,
+        }
+
     def login_user(self, email, password):
         """
         Authentifie un utilisateur et retourne un JWT si succès.
-        Le token contient user_service_id pour permettre aux autres services
-        d'identifier l'utilisateur dans le service User.
+
+        ✅ CORRECTION : les claims personnalisés sont injectés à la fois dans
+        le refresh token ET dans l'access token.
+
+        Avant, seul le refresh token recevait les claims. L'access token était
+        généré via refresh.access_token avant l'injection → il ne contenait
+        que le sub (UUID) sans aucun claim métier. Le frontend ne pouvait donc
+        pas lire user_service_id / role / email depuis l'access token.
         """
         try:
             user = AuthUser.objects.get(email=email)
@@ -36,22 +51,22 @@ class AuthService:
         if not user.is_active:
             raise ValueError("Compte désactivé.")
 
-        # ✅ Génération du JWT avec claims personnalisés
+        claims = self._build_custom_claims(user)
+
+        # ── Refresh token ────────────────────────────────────────────────────
         refresh = RefreshToken.for_user(user)
+        for key, value in claims.items():
+            refresh[key] = value
 
-        # ✅ Ajout de user_service_id dans le token
-        refresh["user_service_id"] = str(user.user_service_id) if user.user_service_id else None
-        refresh["email"] = user.email
-        refresh["role"] = user.role
-        refresh["is_verified"] = user.is_verified
+        # ── Access token — doit recevoir les claims indépendamment ───────────
+        # refresh.access_token est une instance séparée ; on doit lui injecter
+        # les claims explicitement après l'avoir récupérée.
+        access = refresh.access_token
+        for key, value in claims.items():
+            access[key] = value
 
-        # ✅ DTO minimal pour événement email
-        user_dto = UserDataDTO(
-            user_id=user.id,
-            email=user.email
-        )
-
-        # ✅ Publication event : envoi d'email (service publication)
+        # ── Publication event email ──────────────────────────────────────────
+        user_dto = UserDataDTO(user_id=user.id, email=user.email)
         try:
             publisher = RabbitMQPublisher(queue='user-email-queue')
             publisher.publish_message(user_dto.to_dict())
@@ -61,11 +76,11 @@ class AuthService:
 
         return {
             "refresh": str(refresh),
-            "access": str(refresh.access_token),
+            "access":  str(access),
             "user": {
-                "email": user.email,
-                "role": user.role,
-                "is_verified": user.is_verified,
+                "email":           user.email,
+                "role":            user.role,
+                "is_verified":     user.is_verified,
                 "user_service_id": str(user.user_service_id) if user.user_service_id else None,
-            }
+            },
         }
