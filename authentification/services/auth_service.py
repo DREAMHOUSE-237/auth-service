@@ -22,7 +22,8 @@ class AuthService:
     def login_user(self, email, password):
         """
         Authentifie un utilisateur et retourne un JWT si succès.
-        Publie ensuite un événement d'email vers RabbitMQ (publication service).
+        Le token contient user_service_id pour permettre aux autres services
+        d'identifier l'utilisateur dans le service User.
         """
         try:
             user = AuthUser.objects.get(email=email)
@@ -35,8 +36,14 @@ class AuthService:
         if not user.is_active:
             raise ValueError("Compte désactivé.")
 
-        # ✅ Génération du JWT
+        # ✅ Génération du JWT avec claims personnalisés
         refresh = RefreshToken.for_user(user)
+
+        # ✅ Ajout de user_service_id dans le token
+        refresh["user_service_id"] = str(user.user_service_id) if user.user_service_id else None
+        refresh["email"] = user.email
+        refresh["role"] = user.role
+        refresh["is_verified"] = user.is_verified
 
         # ✅ DTO minimal pour événement email
         user_dto = UserDataDTO(
@@ -58,6 +65,7 @@ class AuthService:
             "user": {
                 "email": user.email,
                 "role": user.role,
-                "is_verified": user.is_verified
+                "is_verified": user.is_verified,
+                "user_service_id": str(user.user_service_id) if user.user_service_id else None,
             }
         }

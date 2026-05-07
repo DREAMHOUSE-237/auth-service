@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-# ── Bootstrap Django si lancé en standalone ──────────────────────────────────
+
 def _bootstrap_django():
     if not os.environ.get('DJANGO_SETTINGS_MODULE'):
         BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,12 +20,8 @@ def _bootstrap_django():
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_authentification.settings')
         django.setup()
 
-# ─────────────────────────────────────────────────────────────────────────────
 
 def handle_user_created(ch, method, properties, body):
-    """
-    Callback déclenché à chaque message dans 'user_created'.
-    """
     from ..models import AuthUser
     from .message_publisher import RabbitMQPublisher
 
@@ -33,9 +29,9 @@ def handle_user_created(ch, method, properties, body):
         data = json.loads(body)
         print(f"[📨] user_created reçu : {data.get('email')}")
 
-        email = data.get("email")
-        raw_password = data.get("password")
-        role = data.get("role", "client")
+        email           = data.get("email")
+        raw_password    = data.get("password")
+        role            = data.get("role", "client")
         user_service_id = data.get("user_service_id")
 
         if not email or not raw_password or not user_service_id:
@@ -46,6 +42,10 @@ def handle_user_created(ch, method, properties, body):
         # ── Éviter les doublons ───────────────────────────────────────────────
         if AuthUser.objects.filter(email=email).exists():
             auth_user = AuthUser.objects.get(email=email)
+            # ✅ Met à jour user_service_id s'il manque
+            if not auth_user.user_service_id:
+                auth_user.user_service_id = str(user_service_id)
+                auth_user.save(update_fields=["user_service_id"])
             print(f"[⚠️] AuthUser {email} existe déjà — ACK envoyé quand même.")
         else:
             auth_user = AuthUser(email=email, role=role)
@@ -56,9 +56,11 @@ def handle_user_created(ch, method, properties, body):
             if cni_verso:
                 auth_user.cni_verso = cni_verso
 
+            # ✅ Stocker user_service_id dès la création
+            auth_user.user_service_id = str(user_service_id)
             auth_user.set_password(raw_password)
             auth_user.save()
-            print(f"[✅] AuthUser créé : {auth_user.email} (id={auth_user.id})")
+            print(f"[✅] AuthUser créé : {auth_user.email} (id={auth_user.id}, user_service_id={user_service_id})")
 
         # ── Publier l'ACK vers le service User ────────────────────────────────
         ack_payload = {
@@ -81,9 +83,6 @@ def handle_user_created(ch, method, properties, body):
 
 
 def start_consuming_user_created():
-    """
-    Lance le consumer en boucle bloquante.
-    """
     credentials = pika.PlainCredentials(
         os.getenv("RABBITMQ_USER", "guest"),
         os.getenv("RABBITMQ_PASSWORD", "guest")
@@ -111,7 +110,6 @@ def start_consuming_user_created():
             time.sleep(5)
 
 
-# ── Lancement standalone ─────────────────────────────────────────────────────
 if __name__ == "__main__":
     _bootstrap_django()
     start_consuming_user_created()
