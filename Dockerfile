@@ -42,3 +42,4 @@ COPY . .
 EXPOSE 8001
 
 CMD ["gunicorn", "service_authentification.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "4"]
+#
