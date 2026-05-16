@@ -22,13 +22,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'authentification',
-    # corsheaders removed — the Gateway is the sole CORS owner.
-    # Django is never reached directly by the browser, so it must
-    # never emit Access-Control-Allow-Origin headers.
+    # 'corsheaders' REMOVED — Django is behind the Gateway and never
+    # reached directly by the browser. It must never emit
+    # Access-Control-Allow-Origin headers or it duplicates the
+    # Gateway's header and the browser blocks the request.
 ]
 
 MIDDLEWARE = [
-    # CorsMiddleware removed — see note above.
+    # 'corsheaders.middleware.CorsMiddleware' REMOVED — see above.
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -37,6 +38,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# CORS_ALLOW_ALL_ORIGINS and CORS_ALLOW_CREDENTIALS REMOVED.
+# The Spring Cloud Gateway is the sole owner of all CORS configuration.
 
 ROOT_URLCONF = 'service_authentification.urls'
 
@@ -90,6 +94,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # No global permission — allows /api/auth/login to stay open
 }
 
 MEDIA_URL = '/media/'
