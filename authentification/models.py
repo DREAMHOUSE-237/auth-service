@@ -20,7 +20,7 @@ class AuthUser(models.Model):
         help_text="Code région du Cameroun (ex: CE, LT, OU...)"
     )
     region_display = models.CharField(
-        max_length=3,
+        max_length=100,
         null=True,
         blank=True,
         help_text="Display des région du Cameroun (ex: Centre, Littorale..)"
