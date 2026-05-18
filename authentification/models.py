@@ -13,19 +13,26 @@ class AuthUser(models.Model):
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=255)
     role = models.CharField(max_length=50)
-    cni_recto = models.ImageField(upload_to='images/', null=False)
-    cni_verso = models.ImageField(upload_to='images/', null=False)
+    region = models.CharField(
+        max_length=3,
+        null=True,
+        blank=True,
+        help_text="Code région du Cameroun (ex: CE, LT, OU...)"
+    )
+    region_display = models.CharField(
+        max_length=3,
+        null=True,
+        blank=True,
+        help_text="Display des région du Cameroun (ex: Centre, Littorale..)"
+    )
     is_active = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
-
-    # ✅ Ajout : ID de l'utilisateur dans le service User
     user_service_id = models.CharField(
         max_length=128,
         null=True,
         blank=True,
         help_text="ID de l'utilisateur dans le service User"
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
