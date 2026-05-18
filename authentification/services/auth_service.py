@@ -80,6 +80,8 @@ class AuthService:
             "user": {
                 "email":           user.email,
                 "role":            user.role,
+                "region":          user.region,
+                "region_display":  user.region_display,
                 "is_verified":     user.is_verified,
                 "user_service_id": str(user.user_service_id) if user.user_service_id else None,
             },
