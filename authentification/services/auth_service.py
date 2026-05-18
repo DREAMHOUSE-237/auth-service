@@ -8,8 +8,8 @@ Après refactorisation :
 - Ce service gère uniquement la connexion (login) et la génération de JWT.
 """
 from ..models import AuthUser
-from .dto import UserDataDTO
-from .message_publisher import RabbitMQPublisher
+#from .dto import UserDataDTO
+#from .message_publisher import RabbitMQPublisher
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -66,13 +66,13 @@ class AuthService:
             access[key] = value
 
         # ── Publication event email ──────────────────────────────────────────
-        user_dto = UserDataDTO(user_id=user.id, email=user.email)
-        try:
-            publisher = RabbitMQPublisher(queue='user-email-queue')
-            publisher.publish_message(user_dto.to_dict())
-            print(f"[✅] Événement email publié pour {user.email}")
-        except Exception as e:
-            print(f"[⚠️] Connexion réussie mais erreur RabbitMQ email : {e}")
+        #user_dto = UserDataDTO(user_id=user.id, email=user.email)
+        #try:
+        #    publisher = RabbitMQPublisher(queue='user-email-queue')
+        #    publisher.publish_message(user_dto.to_dict())
+        #    print(f"[✅] Événement email publié pour {user.email}")
+        #except Exception as e:
+        #    print(f"[⚠️] Connexion réussie mais erreur RabbitMQ email : {e}")
 
         return {
             "refresh": str(refresh),
