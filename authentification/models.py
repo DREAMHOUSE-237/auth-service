@@ -14,7 +14,7 @@ class AuthUser(models.Model):
     password = models.CharField(max_length=255)
     role = models.CharField(max_length=50)
     region = models.CharField(
-        max_length=3,
+        max_length=25,
         null=True,
         blank=True,
         help_text="Code région du Cameroun (ex: CE, LT, OU...)"
