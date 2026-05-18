@@ -66,7 +66,18 @@ class AuthService:
             access[key] = value
 
         # ── Publication event email ──────────────────────────────────────────
-        user_dto = UserDataDTO(user_id=user.id, email=user.email)
+        user_dto = UserDataDTO(
+            event="user.login",
+            user_auth_id=str(user.id),
+            user_service_id=str(user.user_service_id) if user.user_service_id else None,
+            email=user.email,
+            role=user.role,
+            region=user.region,
+            region_display=user.region_display,
+            is_verified=user.is_verified,
+            is_active=user.is_active,
+        )
+        
         try:
             publisher = RabbitMQPublisher(queue='user-email-queue')
             publisher.publish_message(user_dto.to_dict())
