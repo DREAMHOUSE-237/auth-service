@@ -1,99 +1,174 @@
 # auth_app/services/auth_service.py
+
 """
 Service métier du microservice Auth.
 
 Après refactorisation :
-- L'inscription n'est PLUS gérée ici. Le service User est désormais le point d'entrée
-  du register. Il publie dans 'user_created' → consume_user_events.py crée l'AuthUser.
-- Ce service gère uniquement la connexion (login) et la génération de JWT.
+- L'inscription n'est PLUS gérée ici.
+- Le service User est désormais le point d'entrée du register.
+- Il publie dans 'user_created' → consume_user_events.py crée l'AuthUser.
+- Ce service gère uniquement :
+    - la connexion (login)
+    - la génération JWT
+    - les événements RabbitMQ liés à l'auth
 """
+
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from ..models import AuthUser
 from .dto import UserDataDTO
 from .message_publisher import RabbitMQPublisher
-from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class AuthService:
     """
     Service métier central du microservice Auth.
-    Gère l'authentification (login) et la communication inter-service.
     """
 
     def _build_custom_claims(self, user):
-        """Retourne le dict des claims personnalisés à injecter dans les deux tokens."""
+        """
+        Retourne les claims personnalisés injectés
+        dans le refresh ET l'access token.
+        """
+
         return {
-            "user_service_id": str(user.user_service_id) if user.user_service_id else None,
-            "email":           user.email,
-            "role":            user.role,
-            "is_verified":     user.is_verified,
+            "user_auth_id": str(user.id),
+            "user_service_id": (
+                str(user.user_service_id)
+                if user.user_service_id else None
+            ),
+            "email": user.email,
+            "role": user.role,
+            "region": user.region,
+            "region_display": user.region_display,
+            "is_verified": user.is_verified,
+            "is_active": user.is_active,
         }
+
+    def _publish_login_event(self, user):
+        """
+        Publie un événement RabbitMQ après connexion réussie.
+        """
+
+        user_dto = UserDataDTO(
+            event="user.login",
+
+            user_auth_id=str(user.id),
+
+            user_service_id=(
+                str(user.user_service_id)
+                if user.user_service_id else None
+            ),
+
+            email=user.email,
+            role=user.role,
+
+            region=user.region,
+            region_display=user.region_display,
+
+            is_verified=user.is_verified,
+            is_active=user.is_active,
+        )
+
+        try:
+            publisher = RabbitMQPublisher(
+                queue="user-email-queue"
+            )
+
+            publisher.publish_message(
+                user_dto.to_dict()
+            )
+
+            print(
+                f"[✅] Événement user.login publié "
+                f"pour {user.email}"
+            )
+
+        except Exception as e:
+            print(
+                f"[⚠️] Connexion réussie mais "
+                f"erreur RabbitMQ email : {e}"
+            )
 
     def login_user(self, email, password):
         """
-        Authentifie un utilisateur et retourne un JWT si succès.
+        Authentifie un utilisateur et retourne :
 
-        ✅ CORRECTION : les claims personnalisés sont injectés à la fois dans
-        le refresh token ET dans l'access token.
+        - refresh token
+        - access token
+        - informations utilisateur
 
-        Avant, seul le refresh token recevait les claims. L'access token était
-        généré via refresh.access_token avant l'injection → il ne contenait
-        que le sub (UUID) sans aucun claim métier. Le frontend ne pouvait donc
-        pas lire user_service_id / role / email depuis l'access token.
+        IMPORTANT :
+        Les claims personnalisés sont injectés
+        dans les DEUX tokens.
         """
+
         try:
             user = AuthUser.objects.get(email=email)
+
         except AuthUser.DoesNotExist:
             raise ValueError("Utilisateur inexistant.")
+
+        # ── Vérification mot de passe ────────────────────────────────
 
         if not user.check_password(password):
             raise ValueError("Email ou mot de passe incorrect.")
 
+        # ── Vérification compte actif ────────────────────────────────
+
         if not user.is_active:
             raise ValueError("Compte désactivé.")
 
+        # ── Construction des claims JWT ──────────────────────────────
+
         claims = self._build_custom_claims(user)
 
-        # ── Refresh token ────────────────────────────────────────────────────
+        # ── Refresh token ────────────────────────────────────────────
+
         refresh = RefreshToken.for_user(user)
+
         for key, value in claims.items():
             refresh[key] = value
 
-        # ── Access token — doit recevoir les claims indépendamment ───────────
-        # refresh.access_token est une instance séparée ; on doit lui injecter
-        # les claims explicitement après l'avoir récupérée.
+        # ── Access token ─────────────────────────────────────────────
+        # IMPORTANT :
+        # access_token est une instance séparée.
+        # Les claims doivent être réinjectés explicitement.
+
         access = refresh.access_token
+
         for key, value in claims.items():
             access[key] = value
 
-        # ── Publication event email ──────────────────────────────────────────
-        user_dto = UserDataDTO(
-            event="user.login",
-            user_auth_id=str(user.id),
-            user_service_id=str(user.user_service_id) if user.user_service_id else None,
-            email=user.email,
-            role=user.role,
-            region=user.region,
-            region_display=user.region_display,
-            is_verified=user.is_verified,
-            is_active=user.is_active,
-        )
-        
-        try:
-            publisher = RabbitMQPublisher(queue='user-email-queue')
-            publisher.publish_message(user_dto.to_dict())
-            print(f"[✅] Événement email publié pour {user.email}")
-        except Exception as e:
-            print(f"[⚠️] Connexion réussie mais erreur RabbitMQ email : {e}")
+        # ── Publication événement RabbitMQ ───────────────────────────
+
+        self._publish_login_event(user)
+
+        # ── Réponse API ──────────────────────────────────────────────
 
         return {
             "refresh": str(refresh),
-            "access":  str(access),
+
+            "access": str(access),
+
             "user": {
-                "email":           user.email,
-                "role":            user.role,
-                "region":          user.region,
-                "region_display":  user.region_display,
-                "is_verified":     user.is_verified,
-                "user_service_id": str(user.user_service_id) if user.user_service_id else None,
+                "user_auth_id": str(user.id),
+
+                "user_service_id": (
+                    str(user.user_service_id)
+                    if user.user_service_id else None
+                ),
+
+                "email": user.email,
+
+                "role": user.role,
+
+                "region": user.region,
+
+                "region_display": user.region_display,
+
+                "is_verified": user.is_verified,
+
+                "is_active": user.is_active,
             },
         }
