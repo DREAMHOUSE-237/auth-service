@@ -3,6 +3,7 @@ Django settings for service_authentification project.
 """
 from pathlib import Path
 import os
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,14 +23,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'authentification',
-    # 'corsheaders' REMOVED — Django is behind the Gateway and never
-    # reached directly by the browser. It must never emit
-    # Access-Control-Allow-Origin headers or it duplicates the
-    # Gateway's header and the browser blocks the request.
 ]
 
 MIDDLEWARE = [
-    # 'corsheaders.middleware.CorsMiddleware' REMOVED — see above.
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -38,9 +34,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
-# CORS_ALLOW_ALL_ORIGINS and CORS_ALLOW_CREDENTIALS REMOVED.
-# The Spring Cloud Gateway is the sole owner of all CORS configuration.
 
 ROOT_URLCONF = 'service_authentification.urls'
 
@@ -61,19 +54,46 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'service_authentification.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('MYSQL_DB', 'auth_db'),
-        'USER': os.environ.get('MYSQL_USER', 'auth_user'),
-        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'htchamba124'),
-        'HOST': os.environ.get('MYSQL_HOST', 'dreamhouse237-db.cbc4i248y7jv.eu-north-1.rds.amazonaws.com'),
-        'PORT': os.environ.get('MYSQL_PORT', '3306'),
-        'OPTIONS': {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+# ──────────────────────────────────────────────────────────────────────────────
+# DATABASE
+# CONN_MAX_AGE=0  → Django ferme la connexion après chaque requête HTTP.
+#                   Indispensable avec RDS qui coupe les connexions idle.
+# CONN_HEALTH_CHECKS=True → Django teste la connexion avant de l'utiliser
+#                           et en ouvre une nouvelle si elle est morte.
+# Ces deux options ensemble empêchent le "Server has gone away" dans le
+# consumer RabbitMQ et sous Gunicorn multi-worker.
+# ──────────────────────────────────────────────────────────────────────────────
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=0,
+            conn_health_checks=True,
+        )
+    }
+    DATABASES['default']['OPTIONS'] = {
+        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        'connect_timeout': 10,
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('MYSQL_DB', 'auth_db'),
+            'USER': os.environ.get('MYSQL_USER', 'auth_user'),
+            'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'htchamba124'),
+            'HOST': os.environ.get('MYSQL_HOST', 'dreamhouse237-db.cbc4i248y7jv.eu-north-1.rds.amazonaws.com'),
+            'PORT': os.environ.get('MYSQL_PORT', '3306'),
+            'CONN_MAX_AGE': 0,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'connect_timeout': 10,
+            },
         }
     }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -94,10 +114,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-    # No global permission — allows /api/auth/login to stay open
 }
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-CONN_MAX_AGE = 0
