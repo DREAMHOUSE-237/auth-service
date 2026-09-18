@@ -17,8 +17,7 @@ jobs:
       # 2. Lancer les tests (à adapter selon ton stack Django)
       - name: Run tests
         run: |
-          echo "Exécute tes tests ici (pyt
-          est, manage.py test, etc.)"
+          echo "Exécute tes tests ici (pytest, manage.py test, etc.)"
 
       # 3. Se connecter à Docker Hub
       - name: Login to Docker Hub
@@ -42,15 +41,11 @@ jobs:
   auto-merge:
     needs: test-and-build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Open pull request from dev to main
-        id: pr
+      - name: Merge dev into main
         uses: devops-infra/action-pull-request@v0.5.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -58,14 +53,6 @@ jobs:
           target_branch: main
           title: "Auto merge from dev to main"
           body: "CI passed, merging dev into main for deployment"
-
-      # action-pull-request only opens/updates the PR, it never merges it -
-      # this step does the actual merge so main stays in sync automatically.
-      - name: Auto-merge pull request
-        if: steps.pr.outputs.pr_number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr merge ${{ steps.pr.outputs.pr_number }} --merge
 
   notify-infrastructure:
     needs: auto-merge
