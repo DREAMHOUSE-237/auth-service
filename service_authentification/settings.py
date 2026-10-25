@@ -1,6 +1,7 @@
 """
 Django settings for service_authentification project.
 """
+from datetime import timedelta
 from pathlib import Path
 import os
 import dj_database_url
@@ -116,6 +117,18 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+}
+
+# Clé dédiée à la signature des JWT, partagée avec proxy-service qui valide
+# les tokens à l'entrée du gateway. Repli sur SECRET_KEY tant que le secret
+# n'est pas configuré (le changer déconnecte tous les utilisateurs une fois).
+# Le frontend ne rafraîchit pas encore le token : l'access token dure une
+# journée, la déconnexion pour inactivité (30 min) est gérée côté frontend.
+SIMPLE_JWT = {
+    'SIGNING_KEY': os.environ.get('JWT_SIGNING_KEY') or SECRET_KEY,
+    'ALGORITHM': 'HS256',
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
 MEDIA_URL = '/media/'
